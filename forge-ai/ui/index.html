@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forge AI</title>
+<link rel="icon" href="/assets/forge.png">
+<style>
+  :root {
+    --bg: #07060b;
+    --painel: #0f0d16;
+    --painel-2: #181425;
+    --borda: #2a2140;
+    --texto: #f1ecff;
+    --texto-2: #9b8fbd;
+    --forja: #b026ff;
+    --forja-2: #d68bff;
+    --brilho: 0 0 14px rgba(176, 38, 255, .55), 0 0 2px rgba(214, 139, 255, .9);
+    --erro: #ff5c8a;
+    --raio: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--texto);
+    font: 15px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif;
+    display: flex; overflow: hidden;
+  }
+  button { font: inherit; cursor: pointer; }
+
+  /* ---------- barra lateral ---------- */
+  aside {
+    width: 250px; flex-shrink: 0; background: var(--painel);
+    border-right: 1px solid var(--borda); display: flex; flex-direction: column; padding: 18px 14px; gap: 8px;
+  }
+  .marca { display: flex; align-items: center; gap: 10px; padding: 4px 6px 18px; }
+  .marca svg { width: 34px; height: 34px; }
+  .marca b { font-size: 19px; letter-spacing: .3px; }
+  .marca span { color: var(--forja-2); text-shadow: 0 0 10px rgba(176,38,255,.9); }
+  .lateral-btn {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    background: transparent; color: var(--texto); border: 1px solid transparent;
+    border-radius: 10px; padding: 9px 12px;
+  }
+  .lateral-btn:hover { background: var(--painel-2); }
+  .lateral-btn.destaque { background: var(--forja); color: #fff; font-weight: 600; box-shadow: var(--brilho); }
+  .lateral-btn.destaque:hover { background: var(--forja-2); }
+  .lateral-btn:disabled { opacity: .45; cursor: default; }
+  .espaco { flex: 1; }
+  .rodape-lateral { color: var(--texto-2); font-size: 12px; padding: 6px; }
+
+  /* ---------- área principal ---------- */
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #conversa { flex: 1; overflow-y: auto; padding: 28px 0 12px; scroll-behavior: smooth; }
+  .coluna { max-width: 780px; margin: 0 auto; padding: 0 24px; }
+
+  .boas-vindas { text-align: center; margin-top: 12vh; }
+  .boas-vindas svg { width: 72px; height: 72px; filter: drop-shadow(0 0 18px rgba(176,38,255,.7)); }
+  .boas-vindas h1 { font-size: 30px; font-weight: 600; margin: 14px 0 6px; }
+  .boas-vindas h1 span { color: var(--forja-2); text-shadow: 0 0 14px rgba(176,38,255,.8); }
+  .boas-vindas p { color: var(--texto-2); margin: 0 0 28px; }
+  .sugestoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
+  .sugestoes button {
+    background: var(--painel); border: 1px solid var(--borda); color: var(--texto);
+    border-radius: 12px; padding: 12px 14px; font-size: 14px;
+  }
+  .sugestoes button:hover { border-color: var(--forja); box-shadow: var(--brilho); }
+
+  .msg { margin: 0 0 22px; }
+  .msg.usuario { display: flex; justify-content: flex-end; }
+  .msg.usuario .bolha {
+    background: var(--painel-2); border: 1px solid var(--borda);
+    padding: 10px 16px; border-radius: 18px 18px 4px 18px; max-width: 85%; white-space: pre-wrap;
+  }
+  .msg.ia { display: flex; gap: 14px; }
+  .msg.ia .avatar { flex-shrink: 0; width: 30px; height: 30px; margin-top: 2px; }
+  .msg.ia .corpo { min-width: 0; flex: 1; }
+  .corpo p { margin: 0 0 10px; }
+  .corpo h1, .corpo h2, .corpo h3 { margin: 14px 0 8px; line-height: 1.3; }
+  .corpo h1 { font-size: 21px; } .corpo h2 { font-size: 18px; } .corpo h3 { font-size: 16px; }
+  .corpo ul, .corpo ol { margin: 0 0 10px; padding-left: 22px; }
+  .corpo a { color: var(--forja-2); }
+  .corpo code { background: #040307; border: 1px solid var(--borda); border-radius: 5px; padding: 1px 5px; font-size: 13px; }
+  .corpo pre {
+    background: #040307; border: 1px solid var(--borda); border-radius: 10px;
+    padding: 12px 14px; overflow-x: auto; margin: 0 0 12px;
+  }
+  .corpo pre code { background: none; border: 0; padding: 0; font: 13px/1.5 Consolas, "Cascadia Code", monospace; }
+
+  .ferramenta {
+    font: 12.5px/1.4 Consolas, monospace; color: var(--texto-2);
+    margin: -14px 0 8px 44px; padding: 4px 10px; border-left: 2px solid var(--borda);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .aviso { margin: 0 0 18px 44px; color: var(--erro); background: #1d0b16; border: 1px solid #5a1f3c; padding: 10px 14px; border-radius: 10px; }
+
+  #status { height: 26px; color: var(--texto-2); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  #status .faisca { width: 8px; height: 8px; border-radius: 50%; background: var(--forja); animation: pulsar 1s infinite; }
+  @keyframes pulsar { 50% { opacity: .25; transform: scale(.7); } }
+
+  /* ---------- caixa de texto ---------- */
+  .entrada-wrap { padding: 4px 0 20px; }
+  .entrada {
+    display: flex; align-items: flex-end; gap: 10px; background: var(--painel);
+    border: 1px solid var(--borda); border-radius: 18px; padding: 10px 10px 10px 16px;
+  }
+  .entrada:focus-within { border-color: var(--forja); box-shadow: var(--brilho); }
+  textarea {
+    flex: 1; resize: none; border: 0; outline: 0; background: transparent; color: var(--texto);
+    font: inherit; max-height: 220px; min-height: 26px; padding: 4px 0;
+  }
+  #enviar, #parar {
+    width: 38px; height: 38px; border-radius: 11px; border: 0; display: grid; place-items: center;
+  }
+  #enviar { background: var(--forja); color: #fff; box-shadow: var(--brilho); }
+  #enviar:disabled { box-shadow: none; }
+  #enviar:disabled { opacity: .35; cursor: default; }
+  #parar { background: var(--painel-2); color: var(--texto); display: none; }
+  .dica { text-align: center; color: var(--texto-2); font-size: 12px; margin-top: 8px; }
+
+  /* ---------- janelas (modais) ---------- */
+  .fundo-modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; place-items: center; z-index: 10; }
+  .fundo-modal.aberto { display: grid; }
+  .modal { background: var(--painel); border: 1px solid var(--forja); box-shadow: var(--brilho); border-radius: var(--raio); padding: 26px; width: min(480px, 92vw); }
+  .modal h2 { margin: 0 0 6px; font-size: 20px; }
+  .modal p { color: var(--texto-2); margin: 0 0 16px; font-size: 14px; }
+  .modal input {
+    width: 100%; background: var(--bg); border: 1px solid var(--borda); color: var(--texto);
+    border-radius: 10px; padding: 11px 12px; font: 14px Consolas, monospace; outline: 0;
+  }
+  .modal input:focus { border-color: var(--forja); }
+  .modal .cmd { font: 13px Consolas, monospace; background: var(--bg); border: 1px solid var(--borda); border-radius: 8px; padding: 10px; word-break: break-all; margin-bottom: 8px; }
+  .modal .botoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+  .modal .botoes button { border-radius: 10px; padding: 9px 18px; border: 1px solid var(--borda); background: var(--painel-2); color: var(--texto); }
+  .modal .botoes .primario { background: var(--forja); border-color: var(--forja); color: #fff; font-weight: 600; box-shadow: var(--brilho); }
+  .modal .erro { color: var(--erro); font-size: 13px; min-height: 18px; margin-top: 8px; }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--painel-2);
+    border: 1px solid var(--borda); padding: 10px 18px; border-radius: 10px; display: none; z-index: 20;
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="g-forja" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d68bff"/><stop offset="1" stop-color="#8a2bff"/>
+    </linearGradient>
+    <symbol id="logo" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="15" fill="#0b0912"/><rect x="1" y="1" width="62" height="62" rx="14" fill="none" stroke="#b026ff" stroke-width="2"/>
+      <!-- bigorna -->
+      <path d="M8 22H52V29H45C41 29 39 32 39 36H25C25 32 22 29 17 29C12 29 9 26 8 22Z" fill="url(#g-forja)"/>
+      <path d="M25 36H39L43 46H21Z" fill="url(#g-forja)"/>
+      <rect x="16" y="46" width="32" height="6" rx="1.5" fill="url(#g-forja)"/>
+      <!-- faísca -->
+      <path d="M48 6l2 5.5 5.5 2-5.5 2-2 5.5-2-5.5-5.5-2 5.5-2z" fill="#fff"/>
+    </symbol>
+  </defs>
+</svg>
+
+<aside>
+  <div class="marca"><svg><use href="#logo"/></svg><b>Forge <span>AI</span></b></div>
+  <button class="lateral-btn destaque" id="btn-nova">＋ Nova conversa</button>
+  <button class="lateral-btn" id="btn-baixar" disabled>⬇ Baixar arquivos</button>
+  <button class="lateral-btn" id="btn-navegador" disabled>↗ Ver no navegador</button>
+  <div class="espaco"></div>
+  <button class="lateral-btn" id="btn-chave">⚙ Chave de API</button>
+  <div class="rodape-lateral">Forge Studios · feito com Claude</div>
+</aside>
+
+<main>
+  <div id="conversa">
+    <div class="coluna" id="mensagens">
+      <div class="boas-vindas" id="boas-vindas">
+        <svg><use href="#logo"/></svg>
+        <h1>O que vamos <span>forjar</span> hoje?</h1>
+        <p>Peça um jogo, um site ou um app. A Forge AI escreve, roda e testa o código para você.</p>
+        <div class="sugestoes">
+          <button>Crie um jogo da cobrinha em HTML/JS que funcione no celular e salve um zip em /mnt/session/outputs/</button>
+          <button>Faça uma landing page moderna para a Forge Studios e salve em /mnt/session/outputs/</button>
+          <button>Crie um app de lista de tarefas em React com tema escuro e gere o build</button>
+          <button>Monte um jogo de plataforma 2D simples com Phaser e salve o projeto em um zip</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="coluna entrada-wrap">
+    <div id="status"></div>
+    <div class="entrada">
+      <textarea id="texto" rows="1" placeholder="Peça algo para a Forge AI..."></textarea>
+      <button id="parar" title="Parar">■</button>
+      <button id="enviar" title="Enviar" disabled>➤</button>
+    </div>
+    <div class="dica">Enter envia · Shift+Enter quebra linha · arquivos salvos em /mnt/session/outputs/ podem ser baixados</div>
+  </div>
+</main>
+
+<!-- chave de API -->
+<div class="fundo-modal" id="modal-chave">
+  <div class="modal">
+    <h2>Conectar a Forge AI</h2>
+    <p>Cole sua chave de API da Anthropic. Crie uma em platform.claude.com → API Keys. Ela fica salva só neste computador.</p>
+    <input id="campo-chave" type="password" placeholder="sk-ant-api03-..." autocomplete="off">
+    <div class="erro" id="erro-chave"></div>
+    <div class="botoes">
+      <button id="cancelar-chave">Cancelar</button>
+      <button class="primario" id="salvar-chave">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- permissão -->
+<div class="fundo-modal" id="modal-permissao">
+  <div class="modal">
+    <h2>A Forge AI quer executar</h2>
+    <p id="motivo-permissao">Este comando pode ter efeitos importantes. Permitir?</p>
+    <div class="cmd" id="cmd-permissao"></div>
+    <div class="botoes">
+      <button id="negar">Negar</button>
+      <button class="primario" id="permitir">Permitir</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const TOKEN = "__FORGE_TOKEN__";
+const API = new Proxy({}, {
+  get: (_, nome) => async (...args) => {
+    try {
+      const r = await fetch(`/api/${nome}`, {
+        method: "POST", headers: { "Content-Type": "application/json", "X-Forge-Token": TOKEN },
+        body: JSON.stringify(args),
+      });
+      return await r.json();
+    } catch { return { ok: false, erro: "O app Forge AI foi fechado. Abra de novo." }; }
+  },
+});
+const api = () => API;
+
+/* ---------- markdown simples (seguro: escapa HTML antes) ---------- */
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function inline(s) {
+  return s
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+}
+function markdown(md) {
+  const partes = md.split(/```/);
+  let html = "";
+  partes.forEach((parte, i) => {
+    if (i % 2 === 1) {
+      const codigo = parte.replace(/^[\w+-]*\n/, "");
+      html += `<pre><code>${esc(codigo.replace(/\n$/, ""))}</code></pre>`;
+      return;
+    }
+    let lista = null, paragrafo = [];
+    const fechaPar = () => { if (paragrafo.length) { html += `<p>${paragrafo.join("<br>")}</p>`; paragrafo = []; } };
+    const fechaLista = () => { if (lista) { html += `</${lista}>`; lista = null; } };
+    for (const bruta of esc(parte).split("\n")) {
+      const linha = bruta.trimEnd();
+      let m;
+      if (!linha.trim()) { fechaPar(); fechaLista(); continue; }
+      if ((m = linha.match(/^(#{1,3})\s+(.*)/))) { fechaPar(); fechaLista(); html += `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`; continue; }
+      if ((m = linha.match(/^\s*[-*]\s+(.*)/))) { fechaPar(); if (lista !== "ul") { fechaLista(); html += "<ul>"; lista = "ul"; } html += `<li>${inline(m[1])}</li>`; continue; }
+      if ((m = linha.match(/^\s*\d+[.)]\s+(.*)/))) { fechaPar(); if (lista !== "ol") { fechaLista(); html += "<ol>"; lista = "ol"; } html += `<li>${inline(m[1])}</li>`; continue; }
+      fechaLista(); paragrafo.push(inline(linha));
+    }
+    fechaPar(); fechaLista();
+  });
+  return html;
+}
+
+/* ---------- interface ---------- */
+const LOGO = '<svg class="avatar"><use href="#logo"/></svg>';
+let trabalhando = false;
+let permissaoAtual = null;
+
+function rolar() { const c = $("#conversa"); c.scrollTop = c.scrollHeight; }
+function sairBoasVindas() { const b = $("#boas-vindas"); if (b) b.remove(); }
+function adicionar(html) { sairBoasVindas(); $("#mensagens").insertAdjacentHTML("beforeend", html); rolar(); }
+function toast(t) { const el = $("#toast"); el.textContent = t; el.style.display = "block"; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = "none", 3500); }
+function status(t) { $("#status").innerHTML = t ? `<span class="faisca"></span>${esc(t)}` : ""; }
+
+function definirTrabalhando(v) {
+  trabalhando = v;
+  $("#parar").style.display = v ? "grid" : "none";
+  $("#enviar").style.display = v ? "none" : "grid";
+  atualizarEnviar();
+  if (!v) status("");
+}
+function atualizarEnviar() { $("#enviar").disabled = trabalhando || !$("#texto").value.trim(); }
+
+async function enviar(texto) {
+  texto = (texto ?? $("#texto").value).trim();
+  if (!texto || trabalhando) return;
+  const est = await api().estado();
+  if (!est.tem_chave) { abrirChave(); return; }
+  adicionar(`<div class="msg usuario"><div class="bolha">${esc(texto)}</div></div>`);
+  $("#texto").value = ""; ajustarAltura();
+  definirTrabalhando(true); status("Enviando...");
+  const r = await api().enviar(texto);
+  if (!r.ok) { definirTrabalhando(false); if (r.erro) toast(r.erro); }
+}
+
+/* eventos vindos do Python */
+window.forge = {
+  evento(e) {
+    switch (e.tipo) {
+      case "status": status(e.texto); break;
+      case "sessao": $("#btn-baixar").disabled = false; $("#btn-navegador").disabled = false; break;
+      case "mensagem": adicionar(`<div class="msg ia">${LOGO}<div class="corpo">${markdown(e.texto)}</div></div>`); status("Trabalhando..."); break;
+      case "ferramenta": adicionar(`<div class="ferramenta" title="${esc(e.resumo)}">⚒ ${esc(e.resumo)}</div>`); status("Executando..."); break;
+      case "permissao": abrirPermissao(e); break;
+      case "erro": adicionar(`<div class="aviso">${esc(e.texto)}</div>`); break;
+      case "fim": definirTrabalhando(false); break;
+    }
+  },
+};
+
+/* chave de API */
+function abrirChave() { $("#erro-chave").textContent = ""; $("#campo-chave").value = ""; $("#modal-chave").classList.add("aberto"); setTimeout(() => $("#campo-chave").focus(), 50); }
+async function salvarChave() {
+  const btn = $("#salvar-chave"); btn.disabled = true; btn.textContent = "Verificando...";
+  const r = await api().salvar_chave($("#campo-chave").value);
+  btn.disabled = false; btn.textContent = "Salvar";
+  if (r.ok) { $("#modal-chave").classList.remove("aberto"); toast("Chave salva. Pode pedir!"); }
+  else $("#erro-chave").textContent = r.erro;
+}
+
+/* permissão */
+function abrirPermissao(e) {
+  permissaoAtual = e.id;
+  $("#cmd-permissao").textContent = e.resumo;
+  $("#motivo-permissao").textContent = e.motivo || "Este comando pode ter efeitos importantes. Permitir?";
+  $("#modal-permissao").classList.add("aberto");
+  status("Esperando sua permissão...");
+}
+function responderPermissao(permitir) {
+  $("#modal-permissao").classList.remove("aberto");
+  if (permissaoAtual) api().responder_permissao(permissaoAtual, permitir);
+  permissaoAtual = null; status("Trabalhando...");
+}
+
+function ajustarAltura() { const t = $("#texto"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 220) + "px"; atualizarEnviar(); }
+
+$("#texto").addEventListener("input", ajustarAltura);
+$("#texto").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); enviar(); } });
+$("#enviar").onclick = () => enviar();
+$("#parar").onclick = () => { api().parar(); status("Parando..."); };
+$("#btn-chave").onclick = abrirChave;
+$("#cancelar-chave").onclick = () => $("#modal-chave").classList.remove("aberto");
+$("#salvar-chave").onclick = salvarChave;
+$("#campo-chave").addEventListener("keydown", (ev) => { if (ev.key === "Enter") salvarChave(); });
+$("#permitir").onclick = () => responderPermissao(true);
+$("#negar").onclick = () => responderPermissao(false);
+$("#btn-navegador").onclick = () => api().abrir_no_navegador();
+$("#btn-baixar").onclick = async () => {
+  const r = await api().baixar_arquivos();
+  toast(r.ok ? `${r.quantidade} arquivo(s) salvos em ${r.pasta}` : r.erro);
+};
+$("#btn-nova").onclick = async () => {
+  const r = await api().nova_conversa();
+  if (!r.ok) { toast(r.erro); return; }
+  location.reload();
+};
+document.querySelectorAll(".sugestoes button").forEach((b) => b.onclick = () => enviar(b.textContent));
+
+new EventSource(`/eventos?t=${TOKEN}`).onmessage = (m) => forge.evento(JSON.parse(m.data));
+
+window.addEventListener("DOMContentLoaded", async () => {
+  const est = await api().estado();
+  if (!est.tem_chave) abrirChave();
+  if (est.sessao) { $("#btn-baixar").disabled = false; $("#btn-navegador").disabled = false; }
+  $("#texto").focus();
+});
+</script>
+</body>
+</html>
