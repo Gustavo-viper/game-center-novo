@@ -4,7 +4,7 @@ IA da Forge Studios que programa jogos, sites e apps. Você conversa com ela pel
 
 ## App de desktop: Forge AI.exe (Windows)
 
-É o jeito mais fácil de usar: uma janela de chat com o ícone da Forge AI.
+É o jeito mais fácil de usar: uma janela de chat preta e roxa neon, com o ícone da Forge AI. Ela abre numa janela própria do Microsoft Edge, que já vem no Windows 10 e 11, sem barra de endereço. Quando você fecha a janela, o app encerra.
 
 1. Baixe o `Forge AI.exe`:
    - pela aba **Actions** do GitHub: abra a execução mais recente de "Forge AI - gerar .exe" e baixe o artefato **Forge-AI-Windows**, que vem em .zip;
@@ -15,7 +15,11 @@ IA da Forge Studios que programa jogos, sites e apps. Você conversa com ela pel
 
 Na primeira mensagem, o app cria o agente na sua conta sozinho. Não precisa rodar o `setup_agente.py`.
 
+**Se o app não abrir:** aparece uma mensagem de erro, e os detalhes ficam em `%APPDATA%\ForgeAI\erro.log`. Para abrir esse arquivo, cole `%APPDATA%\ForgeAI` na barra do Explorador de Arquivos.
+
 Para publicar uma versão em Releases, crie uma tag `forge-ai-v1.0.0` e envie para o GitHub. O próprio GitHub gera o .exe e anexa à versão.
+
+**Para gerar o .exe no seu próprio Windows:** com o Python instalado, dê dois cliques em `gerar_exe.bat`. O app aparece em `dist\Forge AI.exe`.
 
 Para rodar o app pelo código, sem o .exe: `pip install -r requirements-app.txt` e depois `python app.py`.
 

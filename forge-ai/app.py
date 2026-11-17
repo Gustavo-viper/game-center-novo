@@ -1,21 +1,35 @@
 """
 Forge AI - aplicativo de desktop (vira "Forge AI.exe" com PyInstaller).
 
-A janela é uma página HTML (ui/index.html) exibida pelo pywebview.
-O JavaScript chama os métodos da classe Api; o Python devolve os eventos
-da IA chamando forge.evento(...) na página.
+Como funciona:
+- um pequeno servidor local (só 127.0.0.1, com token secreto) serve a tela ui/index.html;
+- a tela abre numa janela própria do Microsoft Edge em modo app (sem barra de endereço);
+- a página chama POST /api/<método> e recebe os eventos da IA por /eventos (Server-Sent Events);
+- quando a janela é fechada, o app termina.
+Se algo der errado ao abrir, o erro vai para %APPDATA%\\ForgeAI\\erro.log e aparece um aviso.
 """
 import json
 import os
+import queue
+import secrets
+import shutil
 import subprocess
 import sys
 import threading
+import time
+import traceback
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-import anthropic
-import webview
+# No .exe sem console, stdout/stderr não existem: qualquer print derrubaria o app.
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
 
-from forge_core import garantir_agente
+import anthropic  # noqa: E402
+
+from forge_core import garantir_agente  # noqa: E402
 
 APP_NOME = "Forge AI"
 LIMITE_DOLARES_POR_SESSAO = 5
@@ -70,10 +84,10 @@ def mensagem_de_erro(e: Exception) -> str:
 
 
 class Api:
-    """Métodos chamados pela página via window.pywebview.api.<nome>()."""
+    """Métodos chamados pela página via POST /api/<nome>."""
 
     def __init__(self):
-        self.janela = None
+        self.fila: "queue.Queue[str]" = queue.Queue()
         self.config = ler_config()
         self.session_id = None
         self.vistos: set = set()
@@ -82,9 +96,7 @@ class Api:
 
     # ---------- comunicação Python -> página ----------
     def _emitir(self, tipo: str, **dados) -> None:
-        if self.janela:
-            payload = json.dumps({"tipo": tipo, **dados}, ensure_ascii=False)
-            self.janela.evaluate_js(f"forge.evento({payload})")
+        self.fila.put(json.dumps({"tipo": tipo, **dados}, ensure_ascii=False))
 
     def _cliente(self) -> anthropic.Anthropic:
         chave = self.config.get("api_key") or os.environ.get("ANTHROPIC_API_KEY")
@@ -267,21 +279,149 @@ class Api:
             self._emitir("fim")
 
 
+METODOS_PUBLICOS = {
+    "estado", "salvar_chave", "nova_conversa", "enviar", "responder_permissao",
+    "parar", "baixar_arquivos", "abrir_no_navegador",
+}
+TIPOS = {".html": "text/html; charset=utf-8", ".png": "image/png", ".ico": "image/x-icon"}
+
+
+class Servidor:
+    def __init__(self, api: Api):
+        self.api = api
+        self.token = secrets.token_urlsafe(24)
+        self.clientes = 0
+        self.ultimo_cliente = time.monotonic() + 40  # tempo para a janela abrir
+        servidor = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):  # sem console no .exe: não escrever nada
+                pass
+
+            def _responder(self, codigo, corpo: bytes, tipo="application/json; charset=utf-8"):
+                self.send_response(codigo)
+                self.send_header("Content-Type", tipo)
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(corpo)))
+                self.end_headers()
+                self.wfile.write(corpo)
+
+            def do_GET(self):
+                caminho, _, consulta = self.path.partition("?")
+                if caminho in ("/", "/index.html"):
+                    html = (pasta_recursos() / "ui" / "index.html").read_text(encoding="utf-8")
+                    html = html.replace("__FORGE_TOKEN__", servidor.token)
+                    return self._responder(200, html.encode("utf-8"), TIPOS[".html"])
+                if caminho.startswith("/assets/"):
+                    arquivo = (pasta_recursos() / "assets" / Path(caminho).name)
+                    if arquivo.is_file() and arquivo.suffix in TIPOS:
+                        return self._responder(200, arquivo.read_bytes(), TIPOS[arquivo.suffix])
+                if caminho == "/eventos" and consulta == f"t={servidor.token}":
+                    return self._eventos()
+                self._responder(404, b"{}")
+
+            def _eventos(self):
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                servidor.clientes += 1
+                try:
+                    while True:
+                        try:
+                            dado = servidor.api.fila.get(timeout=5)
+                            self.wfile.write(f"data: {dado}\n\n".encode("utf-8"))
+                        except queue.Empty:
+                            self.wfile.write(b": ping\n\n")  # mantém a conexão viva
+                        self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                    pass
+                finally:
+                    servidor.clientes -= 1
+                    servidor.ultimo_cliente = time.monotonic()
+
+            def do_POST(self):
+                nome = self.path.removeprefix("/api/")
+                if self.headers.get("X-Forge-Token") != servidor.token or nome not in METODOS_PUBLICOS:
+                    return self._responder(403, b'{"ok": false}')
+                tamanho = int(self.headers.get("Content-Length") or 0)
+                try:
+                    args = json.loads(self.rfile.read(tamanho) or b"[]")
+                    resultado = getattr(servidor.api, nome)(*args)
+                except Exception as e:  # noqa: BLE001
+                    resultado = {"ok": False, "erro": mensagem_de_erro(e)}
+                self._responder(200, json.dumps(resultado, ensure_ascii=False).encode("utf-8"))
+
+        self.http = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.http.daemon_threads = True
+        self.url = f"http://127.0.0.1:{self.http.server_address[1]}/"
+
+    def iniciar(self):
+        threading.Thread(target=self.http.serve_forever, daemon=True).start()
+
+
+def achar_navegador() -> str | None:
+    candidatos = []
+    for base in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles"), os.environ.get("LOCALAPPDATA")):
+        if base:
+            candidatos += [
+                Path(base) / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+                Path(base) / "Google" / "Chrome" / "Application" / "chrome.exe",
+            ]
+    for c in candidatos:
+        if c.is_file():
+            return str(c)
+    for nome in ("msedge", "microsoft-edge", "google-chrome", "chromium", "chromium-browser"):
+        if achado := shutil.which(nome):
+            return achado
+    return None
+
+
+def abrir_janela(url: str) -> subprocess.Popen | None:
+    """Abre a tela numa janela de app (Edge/Chrome). Sem eles, usa o navegador padrão."""
+    navegador = achar_navegador()
+    if not navegador:
+        import webbrowser
+        webbrowser.open(url)
+        return None
+    perfil = pasta_dados() / "janela"
+    return subprocess.Popen([
+        navegador, f"--app={url}", f"--user-data-dir={perfil}",
+        "--window-size=1100,760", "--no-first-run", "--no-default-browser-check",
+    ])
+
+
+def mostrar_erro(texto: str) -> None:
+    (pasta_dados() / "erro.log").write_text(texto, encoding="utf-8")
+    if sys.platform == "win32":
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(
+            None,
+            "A Forge AI não conseguiu abrir.\n\nDetalhes salvos em:\n"
+            f"{pasta_dados() / 'erro.log'}\n\n{texto[-600:]}",
+            APP_NOME, 0x10,
+        )
+
+
 def main() -> None:
     api = Api()
-    janela = webview.create_window(
-        APP_NOME,
-        url=str(pasta_recursos() / "ui" / "index.html"),
-        js_api=api,
-        width=1100,
-        height=760,
-        min_size=(720, 520),
-        background_color="#16130f",
-        text_select=True,
-    )
-    api.janela = janela
-    webview.start(icon=str(pasta_recursos() / "assets" / "forge.png"))
+    servidor = Servidor(api)
+    servidor.iniciar()
+    janela = abrir_janela(servidor.url)
+    if janela is not None:
+        inicio = time.monotonic()
+        janela.wait()
+        if time.monotonic() - inicio > 5:
+            return  # a janela foi fechada: encerra o app
+        # O processo saiu logo: o Edge entregou a janela a outro processo. Segue pela conexão da página.
+    # Modo navegador padrão (ou janela entregue): termina quando a página fica 20s desconectada.
+    while servidor.clientes > 0 or time.monotonic() - servidor.ultimo_cliente < 20:
+        time.sleep(1)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:  # noqa: BLE001
+        mostrar_erro(traceback.format_exc())
+        sys.exit(1)

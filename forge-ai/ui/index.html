@@ -4,17 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Forge AI</title>
+<link rel="icon" href="/assets/forge.png">
 <style>
   :root {
-    --bg: #16130f;
-    --painel: #1f1b16;
-    --painel-2: #29231c;
-    --borda: #3a3128;
-    --texto: #efe7dc;
-    --texto-2: #a89b8b;
-    --forja: #f2742b;
-    --forja-2: #ffb347;
-    --erro: #ff6b5e;
+    --bg: #07060b;
+    --painel: #0f0d16;
+    --painel-2: #181425;
+    --borda: #2a2140;
+    --texto: #f1ecff;
+    --texto-2: #9b8fbd;
+    --forja: #b026ff;
+    --forja-2: #d68bff;
+    --brilho: 0 0 14px rgba(176, 38, 255, .55), 0 0 2px rgba(214, 139, 255, .9);
+    --erro: #ff5c8a;
     --raio: 14px;
   }
   * { box-sizing: border-box; }
@@ -34,14 +36,14 @@
   .marca { display: flex; align-items: center; gap: 10px; padding: 4px 6px 18px; }
   .marca svg { width: 34px; height: 34px; }
   .marca b { font-size: 19px; letter-spacing: .3px; }
-  .marca span { color: var(--forja); }
+  .marca span { color: var(--forja-2); text-shadow: 0 0 10px rgba(176,38,255,.9); }
   .lateral-btn {
     display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
     background: transparent; color: var(--texto); border: 1px solid transparent;
     border-radius: 10px; padding: 9px 12px;
   }
   .lateral-btn:hover { background: var(--painel-2); }
-  .lateral-btn.destaque { background: var(--forja); color: #1b1009; font-weight: 600; }
+  .lateral-btn.destaque { background: var(--forja); color: #fff; font-weight: 600; box-shadow: var(--brilho); }
   .lateral-btn.destaque:hover { background: var(--forja-2); }
   .lateral-btn:disabled { opacity: .45; cursor: default; }
   .espaco { flex: 1; }
@@ -53,15 +55,16 @@
   .coluna { max-width: 780px; margin: 0 auto; padding: 0 24px; }
 
   .boas-vindas { text-align: center; margin-top: 12vh; }
-  .boas-vindas svg { width: 64px; height: 64px; }
+  .boas-vindas svg { width: 72px; height: 72px; filter: drop-shadow(0 0 18px rgba(176,38,255,.7)); }
   .boas-vindas h1 { font-size: 30px; font-weight: 600; margin: 14px 0 6px; }
+  .boas-vindas h1 span { color: var(--forja-2); text-shadow: 0 0 14px rgba(176,38,255,.8); }
   .boas-vindas p { color: var(--texto-2); margin: 0 0 28px; }
   .sugestoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
   .sugestoes button {
     background: var(--painel); border: 1px solid var(--borda); color: var(--texto);
     border-radius: 12px; padding: 12px 14px; font-size: 14px;
   }
-  .sugestoes button:hover { border-color: var(--forja); }
+  .sugestoes button:hover { border-color: var(--forja); box-shadow: var(--brilho); }
 
   .msg { margin: 0 0 22px; }
   .msg.usuario { display: flex; justify-content: flex-end; }
@@ -77,9 +80,9 @@
   .corpo h1 { font-size: 21px; } .corpo h2 { font-size: 18px; } .corpo h3 { font-size: 16px; }
   .corpo ul, .corpo ol { margin: 0 0 10px; padding-left: 22px; }
   .corpo a { color: var(--forja-2); }
-  .corpo code { background: #0f0d0a; border: 1px solid var(--borda); border-radius: 5px; padding: 1px 5px; font-size: 13px; }
+  .corpo code { background: #040307; border: 1px solid var(--borda); border-radius: 5px; padding: 1px 5px; font-size: 13px; }
   .corpo pre {
-    background: #0f0d0a; border: 1px solid var(--borda); border-radius: 10px;
+    background: #040307; border: 1px solid var(--borda); border-radius: 10px;
     padding: 12px 14px; overflow-x: auto; margin: 0 0 12px;
   }
   .corpo pre code { background: none; border: 0; padding: 0; font: 13px/1.5 Consolas, "Cascadia Code", monospace; }
@@ -89,7 +92,7 @@
     margin: -14px 0 8px 44px; padding: 4px 10px; border-left: 2px solid var(--borda);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .aviso { margin: 0 0 18px 44px; color: var(--erro); background: #2a1512; border: 1px solid #5a2620; padding: 10px 14px; border-radius: 10px; }
+  .aviso { margin: 0 0 18px 44px; color: var(--erro); background: #1d0b16; border: 1px solid #5a1f3c; padding: 10px 14px; border-radius: 10px; }
 
   #status { height: 26px; color: var(--texto-2); font-size: 13px; display: flex; align-items: center; gap: 8px; }
   #status .faisca { width: 8px; height: 8px; border-radius: 50%; background: var(--forja); animation: pulsar 1s infinite; }
@@ -101,7 +104,7 @@
     display: flex; align-items: flex-end; gap: 10px; background: var(--painel);
     border: 1px solid var(--borda); border-radius: 18px; padding: 10px 10px 10px 16px;
   }
-  .entrada:focus-within { border-color: var(--forja); }
+  .entrada:focus-within { border-color: var(--forja); box-shadow: var(--brilho); }
   textarea {
     flex: 1; resize: none; border: 0; outline: 0; background: transparent; color: var(--texto);
     font: inherit; max-height: 220px; min-height: 26px; padding: 4px 0;
@@ -109,7 +112,8 @@
   #enviar, #parar {
     width: 38px; height: 38px; border-radius: 11px; border: 0; display: grid; place-items: center;
   }
-  #enviar { background: var(--forja); color: #1b1009; }
+  #enviar { background: var(--forja); color: #fff; box-shadow: var(--brilho); }
+  #enviar:disabled { box-shadow: none; }
   #enviar:disabled { opacity: .35; cursor: default; }
   #parar { background: var(--painel-2); color: var(--texto); display: none; }
   .dica { text-align: center; color: var(--texto-2); font-size: 12px; margin-top: 8px; }
@@ -117,7 +121,7 @@
   /* ---------- janelas (modais) ---------- */
   .fundo-modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; place-items: center; z-index: 10; }
   .fundo-modal.aberto { display: grid; }
-  .modal { background: var(--painel); border: 1px solid var(--borda); border-radius: var(--raio); padding: 26px; width: min(480px, 92vw); }
+  .modal { background: var(--painel); border: 1px solid var(--forja); box-shadow: var(--brilho); border-radius: var(--raio); padding: 26px; width: min(480px, 92vw); }
   .modal h2 { margin: 0 0 6px; font-size: 20px; }
   .modal p { color: var(--texto-2); margin: 0 0 16px; font-size: 14px; }
   .modal input {
@@ -128,7 +132,7 @@
   .modal .cmd { font: 13px Consolas, monospace; background: var(--bg); border: 1px solid var(--borda); border-radius: 8px; padding: 10px; word-break: break-all; margin-bottom: 8px; }
   .modal .botoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
   .modal .botoes button { border-radius: 10px; padding: 9px 18px; border: 1px solid var(--borda); background: var(--painel-2); color: var(--texto); }
-  .modal .botoes .primario { background: var(--forja); border-color: var(--forja); color: #1b1009; font-weight: 600; }
+  .modal .botoes .primario { background: var(--forja); border-color: var(--forja); color: #fff; font-weight: 600; box-shadow: var(--brilho); }
   .modal .erro { color: var(--erro); font-size: 13px; min-height: 18px; margin-top: 8px; }
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--painel-2);
@@ -141,14 +145,14 @@
 <svg width="0" height="0" style="position:absolute">
   <defs>
     <linearGradient id="g-forja" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffb347"/><stop offset="1" stop-color="#e8531f"/>
+      <stop offset="0" stop-color="#d68bff"/><stop offset="1" stop-color="#8a2bff"/>
     </linearGradient>
     <symbol id="logo" viewBox="0 0 64 64">
-      <rect width="64" height="64" rx="15" fill="url(#g-forja)"/>
+      <rect width="64" height="64" rx="15" fill="#0b0912"/><rect x="1" y="1" width="62" height="62" rx="14" fill="none" stroke="#b026ff" stroke-width="2"/>
       <!-- bigorna -->
-      <path d="M8 22H52V29H45C41 29 39 32 39 36H25C25 32 22 29 17 29C12 29 9 26 8 22Z" fill="#1b1009"/>
-      <path d="M25 36H39L43 46H21Z" fill="#1b1009"/>
-      <rect x="16" y="46" width="32" height="6" rx="1.5" fill="#1b1009"/>
+      <path d="M8 22H52V29H45C41 29 39 32 39 36H25C25 32 22 29 17 29C12 29 9 26 8 22Z" fill="url(#g-forja)"/>
+      <path d="M25 36H39L43 46H21Z" fill="url(#g-forja)"/>
+      <rect x="16" y="46" width="32" height="6" rx="1.5" fill="url(#g-forja)"/>
       <!-- faísca -->
       <path d="M48 6l2 5.5 5.5 2-5.5 2-2 5.5-2-5.5-5.5-2 5.5-2z" fill="#fff"/>
     </symbol>
@@ -170,7 +174,7 @@
     <div class="coluna" id="mensagens">
       <div class="boas-vindas" id="boas-vindas">
         <svg><use href="#logo"/></svg>
-        <h1>O que vamos forjar hoje?</h1>
+        <h1>O que vamos <span>forjar</span> hoje?</h1>
         <p>Peça um jogo, um site ou um app. A Forge AI escreve, roda e testa o código para você.</p>
         <div class="sugestoes">
           <button>Crie um jogo da cobrinha em HTML/JS que funcione no celular e salve um zip em /mnt/session/outputs/</button>
@@ -223,7 +227,19 @@
 
 <script>
 const $ = (s) => document.querySelector(s);
-const api = () => window.pywebview.api;
+const TOKEN = "__FORGE_TOKEN__";
+const API = new Proxy({}, {
+  get: (_, nome) => async (...args) => {
+    try {
+      const r = await fetch(`/api/${nome}`, {
+        method: "POST", headers: { "Content-Type": "application/json", "X-Forge-Token": TOKEN },
+        body: JSON.stringify(args),
+      });
+      return await r.json();
+    } catch { return { ok: false, erro: "O app Forge AI foi fechado. Abra de novo." }; }
+  },
+});
+const api = () => API;
 
 /* ---------- markdown simples (seguro: escapa HTML antes) ---------- */
 function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -355,7 +371,9 @@ $("#btn-nova").onclick = async () => {
 };
 document.querySelectorAll(".sugestoes button").forEach((b) => b.onclick = () => enviar(b.textContent));
 
-window.addEventListener("pywebviewready", async () => {
+new EventSource(`/eventos?t=${TOKEN}`).onmessage = (m) => forge.evento(JSON.parse(m.data));
+
+window.addEventListener("DOMContentLoaded", async () => {
   const est = await api().estado();
   if (!est.tem_chave) abrirChave();
   if (est.sessao) { $("#btn-baixar").disabled = false; $("#btn-navegador").disabled = false; }
