@@ -2,6 +2,27 @@
 
 IA da Forge Studios que programa jogos, sites e apps. Você conversa com ela pelo terminal. Ela roda em um computador isolado na nuvem da Anthropic (Managed Agents), onde pode criar arquivos, rodar comandos, instalar pacotes e testar o código.
 
+## App de desktop: Forge AI.exe (Windows)
+
+É o jeito mais fácil de usar: uma janela de chat com o ícone da Forge AI.
+
+1. Baixe o `Forge AI.exe`:
+   - pela aba **Actions** do GitHub: abra a execução mais recente de "Forge AI - gerar .exe" e baixe o artefato **Forge-AI-Windows**, que vem em .zip;
+   - ou pela aba **Releases**, quando houver uma versão publicada.
+2. Dê dois cliques no arquivo. Como o app não tem assinatura digital, o Windows pode mostrar "O Windows protegeu o computador". Nesse caso, clique em **Mais informações** e depois em **Executar assim mesmo**.
+3. Na primeira vez, cole sua chave de API. Ela fica salva só no seu computador, em `%APPDATA%\ForgeAI\config.json`.
+4. Faça o pedido. Os arquivos que a IA salvar ficam disponíveis no botão **⬇ Baixar arquivos** e vão para `Downloads\Forge AI\`.
+
+Na primeira mensagem, o app cria o agente na sua conta sozinho. Não precisa rodar o `setup_agente.py`.
+
+Para publicar uma versão em Releases, crie uma tag `forge-ai-v1.0.0` e envie para o GitHub. O próprio GitHub gera o .exe e anexa à versão.
+
+Para rodar o app pelo código, sem o .exe: `pip install -r requirements-app.txt` e depois `python app.py`.
+
+---
+
+O restante deste guia é para quem prefere usar pelo terminal.
+
 ## 1. Instalar (uma vez)
 
 ```bash
@@ -14,7 +35,10 @@ pip install -r requirements.txt
 Crie uma chave de API em https://platform.claude.com (menu **API Keys**) e defina a variável de ambiente:
 
 ```bash
-export ANTHROPIC_API_KEY="sua-chave"     # Windows (PowerShell): $env:ANTHROPIC_API_KEY="sua-chave"
+export ANTHROPIC_API_KEY="sua-chave"          # Linux / Mac
+```
+```powershell
+$env:ANTHROPIC_API_KEY="sua-chave"            # Windows (PowerShell)
 ```
 
 ## 2. Criar o agente (uma vez)
@@ -50,7 +74,7 @@ O repositório fica em `/workspace/repo` dentro da sessão.
 
 ## Personalizar
 
-Tudo fica em `setup_agente.py`. Depois de mudar, rode `python setup_agente.py` de novo para criar uma nova versão do agente:
+Tudo fica em `forge_core.py`, que serve tanto para o app quanto para o terminal. Depois de mudar, rode `python setup_agente.py` de novo para criar uma nova versão do agente:
 
 - `SYSTEM_PROMPT`: os padrões e as regras da Forge.
 - `model`: hoje é `claude-opus-5-5` com `effort: "high"`. Use `"medium"` para gastar menos ou `"xhigh"` para tarefas difíceis.
